@@ -1,0 +1,81 @@
+{
+  "teams": [
+    {
+      "id": "team-001",
+      "code": "123456",
+      "name": "Demo Team",
+      "pin": "1234",
+      "members": [
+        {
+          "id": "leader-001",
+          "username": "leader",
+          "name": "Demo Leader",
+          "passwordHash": "$2b$10$N9qo8uLOickgx2ZMRZo5i.UvJjT9O1xM7tCw8q1aFf8Os8GkZ4m5e",
+          "role": "leader",
+          "status": "active"
+        }
+      ],
+      "products": [
+        {
+          "id": "prod-001",
+          "name": "Starter Pack",
+          "quantity": 20,
+          "buyPrice": 25,
+          "targetPrice": 40,
+          "createdAt": "2026-02-05T00:00:00.000Z"
+        }
+      ],
+      "sales": [],
+      "messages": []
+    },
+    {
+      "id": "43ac4ae3-e396-42a7-858b-61e696c24f2f",
+      "code": "693470",
+      "name": "zen",
+      "pin": "4455",
+      "members": [
+        {
+          "id": "3871af1a-8eda-444d-a503-c3a001c28eb4",
+          "username": "gautam12",
+          "name": "gautam",
+          "passwordHash": "$2b$10$m0BXAmK4hSYQKuB9x1VilOMk05Iuk3mpir7eJAjKDSljp2iFKRJdG",
+          "role": "leader",
+          "status": "active"
+        },
+        {
+          "id": "51d855be-ff42-48e4-803b-1598ba16d0cb",
+          "username": "tejas12",
+          "name": "tejas",
+          "passwordHash": "$2b$10$kTRq2ifIV79n.7mtYSiv8OEWPlK5WMfpHPs1elz4Ih6EkUxSLro52",
+          "role": "member",
+          "status": "active"
+        }
+      ],
+      "products": [
+        {
+          "id": "7dcf36d2-a89c-4314-b76f-802ea93d44fb",
+          "name": "kitkat",
+          "quantity": 5,
+          "buyPrice": 18,
+          "targetPrice": 20,
+          "createdAt": "2026-02-05T13:55:02.162Z"
+        }
+      ],
+      "sales": [
+        {
+          "id": "38a333d9-34d4-47cf-9522-be7a32b28c64",
+          "productId": "7dcf36d2-a89c-4314-b76f-802ea93d44fb",
+          "productName": "kitkat",
+          "quantity": 5,
+          "buyPrice": 18,
+          "targetPrice": 20,
+          "actualSellPrice": 25,
+          "profit": 35,
+          "soldBy": "51d855be-ff42-48e4-803b-1598ba16d0cb",
+          "soldAt": "2026-02-05T13:55:28.910Z"
+        }
+      ],
+      "messages": []
+    }
+  ]
+}
