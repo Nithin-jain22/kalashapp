@@ -55,25 +55,37 @@ app.use(express.json());
 let writeQueue = Promise.resolve();
 
 // Ensure database directory exists before any read/write operations
-async function ensureDBDirectory() {
+async function ensureDBExists() {
   const dbDir = path.dirname(DB_PATH);
+
+  // Ensure directory exists
   try {
     await fs.access(dbDir);
   } catch {
     await fs.mkdir(dbDir, { recursive: true });
   }
+
+  // Ensure db.json exists
+  try {
+    await fs.access(DB_PATH);
+  } catch {
+    const initialData = {
+      teams: []
+    };
+    await fs.writeFile(DB_PATH, JSON.stringify(initialData, null, 2));
+  }
 }
 
 async function readDB() {
-  await ensureDBDirectory();
+  await ensureDBExists();
   const raw = await fs.readFile(DB_PATH, "utf-8");
   return JSON.parse(raw);
 }
 
 function writeDB(data) {
   writeQueue = writeQueue.then(async () => {
-    await ensureDBDirectory();
-    return fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
+    await ensureDBExists();
+    await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
   });
   return writeQueue;
 }
