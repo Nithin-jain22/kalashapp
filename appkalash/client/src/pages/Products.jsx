@@ -143,8 +143,8 @@ export default function Products() {
                 <h3 className="text-base font-semibold text-slate-900">
                   {product.name}
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Buy: ${product.buyPrice} | Target: ${product.targetPrice}
+                <p className="text-lg font-bold text-indigo-600">
+                  Target: ${product.targetPrice}
                 </p>
               </div>
               <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
