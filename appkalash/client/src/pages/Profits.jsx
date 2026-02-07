@@ -56,7 +56,7 @@ export default function Profits() {
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="text-sm text-slate-500">Total profit</div>
           <div className="text-2xl font-semibold text-emerald-600">
-            ${data.totalProfit}
+            ₹{data.totalProfit}
           </div>
           <div className="mt-4 grid gap-3">
             {data.sales.map((sale) => (
@@ -68,9 +68,9 @@ export default function Profits() {
                   {sale.productName}
                 </div>
                 <div className="text-xs text-slate-500">
-                  {sale.quantity} units · ${sale.actualSellPrice} sell
+                  {sale.quantity} units · ₹{sale.actualSellPrice} sell
                 </div>
-                <div className="text-xs text-emerald-600">Profit ${sale.profit}</div>
+                <div className="text-xs text-emerald-600">Profit ₹{sale.profit}</div>
               </div>
             ))}
             {data.sales.length === 0 && (

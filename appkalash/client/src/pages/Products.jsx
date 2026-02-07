@@ -144,7 +144,7 @@ export default function Products() {
                   {product.name}
                 </h3>
                 <p className="text-lg font-bold text-indigo-600">
-                  Target: ${product.targetPrice}
+                  Target: ₹{product.targetPrice}
                 </p>
               </div>
               <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">

@@ -42,7 +42,7 @@ export default function Sales() {
                   {sale.productName}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Sold {sale.quantity} units at ${sale.actualSellPrice}
+                  Sold {sale.quantity} units at ₹{sale.actualSellPrice}
                 </p>
               </div>
             </div>
