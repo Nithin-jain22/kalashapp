@@ -22,7 +22,9 @@ export default function Sales() {
     <div className="space-y-6">
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Sales History</h2>
-        <p className="text-sm text-slate-500">All completed sales for your team.</p>
+        <p className="text-sm text-slate-500">
+          All completed sales for your team.
+        </p>
       </div>
 
       {error && (
@@ -43,15 +45,14 @@ export default function Sales() {
                   Sold {sale.quantity} units at ${sale.actualSellPrice}
                 </p>
               </div>
-              <div className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                Profit ${sale.profit}
-              </div>
             </div>
+
             <div className="mt-2 text-xs text-slate-400">
               {new Date(sale.soldAt).toLocaleString()}
             </div>
           </div>
         ))}
+
         {sales.length === 0 && (
           <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">
             No sales recorded yet.
