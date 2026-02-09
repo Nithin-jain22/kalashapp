@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
 
 export default function JoinTeam() {
-  const { joinTeam } = useAuth();
   const [form, setForm] = useState({
     teamCode: "",
     name: "",
@@ -17,12 +15,29 @@ export default function JoinTeam() {
     event.preventDefault();
     setError("");
     setMessage("");
+
     try {
-      const res = await joinTeam(form);
-      setMessage(res.message || "Request sent. Await approval.");
+      const response = await fetch("/api/auth/join-team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamCode: form.teamCode,
+          name: form.name,
+          username: form.username,
+          password: form.password,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to request access");
+      }
+
+      setMessage("Request sent for approval");
       setForm({ teamCode: "", name: "", username: "", password: "" });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to request access");
     }
   };
 

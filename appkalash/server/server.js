@@ -173,6 +173,57 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+app.post("/api/auth/join-team", async (req, res) => {
+  const { teamCode, name, username, password } = req.body;
+
+  if (!teamCode || !name || !username || !password) {
+    return res.status(400).json({ message: "Missing fields" });
+  }
+
+  try {
+    const { data: existing } = await supabase
+      .from("members")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(400).json({ message: "Username already exists" });
+    }
+
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("code", teamCode)
+      .maybeSingle();
+
+    if (teamError || !team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const { error: insertError } = await supabase.from("members").insert({
+      id: uuidv4(),
+      team_id: team.id,
+      username,
+      name,
+      password_hash: passwordHash,
+      role: "member",
+      status: "pending",
+    });
+
+    if (insertError) {
+      return res.status(400).json({ message: insertError.message });
+    }
+
+    res.json({ message: "Request sent for approval" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 /* -------------------- TEAMS -------------------- */
 
 app.get("/api/teams/me", authMiddleware, async (req, res) => {
@@ -200,6 +251,29 @@ app.get("/api/teams/members", authMiddleware, leaderOnly, async (req, res) => {
 
   res.json(data);
 });
+
+app.patch(
+  "/api/teams/members/:id/approve",
+  authMiddleware,
+  leaderOnly,
+  async (req, res) => {
+    const memberId = req.params.id;
+
+    const { data: updated, error } = await supabase
+      .from("members")
+      .update({ status: "active" })
+      .eq("id", memberId)
+      .eq("team_id", req.user.teamId)
+      .select("id, username, name, role, status")
+      .single();
+
+    if (error || !updated) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    res.json(updated);
+  }
+);
 
 /* -------------------- PRODUCTS -------------------- */
 
