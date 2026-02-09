@@ -1,84 +1,61 @@
-import { useState } from "react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
 
 export default function Profits() {
   const { authFetch } = useAuth();
-  const [pin, setPin] = useState("");
-  const [data, setData] = useState(null);
+  const socket = useSocket();
+
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
+  const loadProfits = async () => {
     try {
-      const res = await authFetch("/api/profits", {
+      setLoading(true);
+      const data = await authFetch("/api/profits", {
         method: "POST",
-        body: JSON.stringify({ pin }),
+        body: JSON.stringify({ pin: prompt("Enter 4-digit PIN") }),
       });
-      setData(res);
+
+      setTotalProfit(data.totalProfit || 0);
+      setError("");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to load profits");
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadProfits();
+
+    if (!socket) return;
+
+    const handler = () => {
+      loadProfits();
+    };
+
+    socket.on("productUpdate", handler);
+
+    return () => {
+      socket.off("productUpdate", handler);
+    };
+  }, [socket]);
+
+  if (loading) {
+    return <div className="p-4 text-slate-500">Loading profits...</div>;
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Profits</h2>
-        <p className="text-sm text-slate-500">
-          Protected by your 4-digit PIN.
-        </p>
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">Total Profit</h2>
+
+      {error && <div className="text-red-500">{error}</div>}
+
+      <div className="rounded-xl bg-white p-6 text-3xl font-bold text-green-600">
+        ₹{totalProfit}
       </div>
-
-      <form className="rounded-2xl bg-white p-5 shadow-sm" onSubmit={handleSubmit}>
-        <label className="text-xs font-semibold text-slate-500">Enter PIN</label>
-        <div className="mt-2 flex gap-3">
-          <input
-            inputMode="numeric"
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            value={pin}
-            onChange={(event) => setPin(event.target.value)}
-            required
-          />
-          <button className="rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white">
-            Unlock
-          </button>
-        </div>
-      </form>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
-      {data && (
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <div className="text-sm text-slate-500">Total profit</div>
-          <div className="text-2xl font-semibold text-emerald-600">
-            ₹{data.totalProfit}
-          </div>
-          <div className="mt-4 grid gap-3">
-            {data.sales.map((sale) => (
-              <div
-                key={sale.id}
-                className="rounded-xl border border-slate-100 bg-slate-50 p-3"
-              >
-                <div className="text-sm font-semibold text-slate-900">
-                  {sale.productName}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {sale.quantity} units · ₹{sale.actualSellPrice} sell
-                </div>
-                <div className="text-xs text-emerald-600">Profit ₹{sale.profit}</div>
-              </div>
-            ))}
-            {data.sales.length === 0 && (
-              <div className="text-sm text-slate-500">No sales yet.</div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
