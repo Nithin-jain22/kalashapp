@@ -9,10 +9,16 @@ import { fileURLToPath } from "url";
 import { initSocket, emitToTeam } from "./socket.js";
 import { supabase } from "./supabase.js";
 
+/* -------------------- SETUP -------------------- */
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
+
 const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -27,7 +33,10 @@ app.use(express.json());
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+
   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
   try {
@@ -145,11 +154,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      {
-        userId: member.id,
-        teamId: member.team_id,
-        role: member.role,
-      },
+      { userId: member.id, teamId: member.team_id, role: member.role },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -204,14 +209,18 @@ app.get("/api/products", authMiddleware, async (req, res) => {
 app.post("/api/products", authMiddleware, leaderOnly, async (req, res) => {
   const { name, quantity, buyPrice, targetPrice } = req.body;
 
-  const { data } = await supabase.from("products").insert({
-    id: uuidv4(),
-    team_id: req.user.teamId,
-    name,
-    quantity,
-    buy_price: buyPrice,
-    target_price: targetPrice,
-  }).select().single();
+  const { data } = await supabase
+    .from("products")
+    .insert({
+      id: uuidv4(),
+      team_id: req.user.teamId,
+      name,
+      quantity: Number(quantity),
+      buy_price: Number(buyPrice),
+      target_price: Number(targetPrice),
+    })
+    .select()
+    .single();
 
   emitToTeam(req.user.teamId, "productUpdate");
   res.json(data);
@@ -221,7 +230,14 @@ app.post("/api/products", authMiddleware, leaderOnly, async (req, res) => {
 
 app.post("/api/sales", authMiddleware, async (req, res) => {
   console.log("JWT user:", req.user);
-  const { productId, quantity, actualSellPrice } = req.body;
+
+  const productId = req.body.productId;
+  const quantity = Number(req.body.quantity);
+  const actualSellPrice = Number(req.body.actualSellPrice);
+
+  if (Number.isNaN(quantity) || Number.isNaN(actualSellPrice)) {
+    return res.status(400).json({ message: "Invalid quantity or price" });
+  }
 
   const { data: product } = await supabase
     .from("products")
@@ -234,25 +250,43 @@ app.post("/api/sales", authMiddleware, async (req, res) => {
     return res.status(400).json({ message: "Price below target" });
   }
 
-  const profit =
-    (actualSellPrice - product.buy_price) * Number(quantity);
+  const profit = (actualSellPrice - product.buy_price) * quantity;
 
-  await supabase.from("products").update({
-    quantity: product.quantity - quantity,
-  }).eq("id", productId);
+  await supabase
+    .from("products")
+    .update({ quantity: product.quantity - quantity })
+    .eq("id", productId);
 
-  const { data } = await supabase.from("sales").insert({
-    id: uuidv4(),
-    team_id: req.user.teamId,
-    product_id: productId,
-    product_name: product.name,
-    quantity,
-    actual_sell_price: actualSellPrice,
-    profit,
-    sold_by: req.user.userId,
-  }).select().single();
+  const { data } = await supabase
+    .from("sales")
+    .insert({
+      id: uuidv4(),
+      team_id: req.user.teamId,
+      product_id: productId,
+      product_name: product.name,
+      quantity,
+      actual_sell_price: actualSellPrice,
+      profit,
+      sold_by: req.user.userId,
+    })
+    .select()
+    .single();
 
   emitToTeam(req.user.teamId, "productUpdate");
+  res.json(data);
+});
+
+app.get("/api/sales", authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from("sales")
+    .select("*")
+    .eq("team_id", req.user.teamId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return res.status(400).json({ message: error.message });
+  }
+
   res.json(data);
 });
 
@@ -271,12 +305,16 @@ app.get("/api/messages", authMiddleware, async (req, res) => {
 app.post("/api/messages", authMiddleware, leaderOnly, async (req, res) => {
   const { text } = req.body;
 
-  const { data } = await supabase.from("messages").insert({
-    id: uuidv4(),
-    team_id: req.user.teamId,
-    text,
-    created_by: req.user.userId,
-  }).select().single();
+  const { data } = await supabase
+    .from("messages")
+    .insert({
+      id: uuidv4(),
+      team_id: req.user.teamId,
+      text,
+      created_by: req.user.userId,
+    })
+    .select()
+    .single();
 
   emitToTeam(req.user.teamId, "teamMessage", data);
   res.json(data);
@@ -302,7 +340,7 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
     .select("profit")
     .eq("team_id", req.user.teamId);
 
-  const totalProfit = sales.reduce((s, x) => s + x.profit, 0);
+  const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
   res.json({ totalProfit });
 });
 
@@ -313,6 +351,8 @@ if (NODE_ENV === "production") {
     res.sendFile(path.resolve(__dirname, "../client/dist/index.html"));
   });
 }
+
+/* -------------------- START SERVER -------------------- */
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
