@@ -5,14 +5,19 @@ export default function Messages() {
   const { authFetch, user, socket } = useAuth();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const fetchMessages = async () => {
+    setLoading(true);
+    setError("");
     try {
       const data = await authFetch("/api/messages");
-      setMessages(data);
+      setMessages(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to load messages");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -21,26 +26,34 @@ export default function Messages() {
   }, []);
 
   useEffect(() => {
-    if (!socket) return undefined;
+    if (!socket) return;
+
     const handleMessage = (message) => {
-      setMessages((prev) => [message, ...prev]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        return [message, ...prev];
+      });
     };
+
     socket.on("teamMessage", handleMessage);
     return () => socket.off("teamMessage", handleMessage);
   }, [socket]);
 
   const handleSend = async (event) => {
     event.preventDefault();
+    if (!text.trim()) return;
+
     setError("");
     try {
       const message = await authFetch("/api/messages", {
         method: "POST",
         body: JSON.stringify({ text }),
       });
+
       setText("");
       setMessages((prev) => [message, ...prev]);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to send message");
     }
   };
 
@@ -65,10 +78,14 @@ export default function Messages() {
             rows={3}
             className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             value={text}
-            onChange={(event) => setText(event.target.value)}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Type your message…"
             required
           />
-          <button className="mt-3 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white">
+          <button
+            type="submit"
+            className="mt-3 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white"
+          >
             Send message
           </button>
         </form>
@@ -80,21 +97,31 @@ export default function Messages() {
         </div>
       )}
 
-      <div className="grid gap-4">
-        {messages.map((message) => (
-          <div key={message.id} className="rounded-2xl bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-700">{message.text}</p>
-            <div className="mt-2 text-xs text-slate-400">
-              {new Date(message.createdAt).toLocaleString()}
+      {loading ? (
+        <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">
+          Loading messages…
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className="rounded-2xl bg-white p-5 shadow-sm"
+            >
+              <p className="text-sm text-slate-700">{message.text}</p>
+              <div className="mt-2 text-xs text-slate-400">
+                {new Date(message.created_at).toLocaleString()}
+              </div>
             </div>
-          </div>
-        ))}
-        {messages.length === 0 && (
-          <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">
-            No messages yet.
-          </div>
-        )}
-      </div>
+          ))}
+
+          {messages.length === 0 && (
+            <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">
+              No messages yet.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
