@@ -176,13 +176,19 @@ app.post("/api/auth/login", async (req, res) => {
 /* -------------------- TEAMS -------------------- */
 
 app.get("/api/teams/me", authMiddleware, async (req, res) => {
-  const { data: team } = await supabase
+  console.log("JWT user:", req.user);
+
+  const { data: team, error } = await supabase
     .from("teams")
     .select("id, code, name")
     .eq("id", req.user.teamId)
     .single();
 
-  if (!team) return res.status(404).json({ message: "Team not found" });
+  if (error) {
+    console.error("Team fetch error:", error);
+    return res.status(404).json({ message: "Team not found" });
+  }
+
   res.json(team);
 });
 
