@@ -3,10 +3,13 @@
 ## Package.json Scripts Status
 
 ### ✅ Build Command
+
 ```json
 "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client"
 ```
+
 **What it does:**
+
 1. Installs client dependencies (React, Vite, Tailwind)
 2. Installs server dependencies (Express, Socket.io, JWT, bcrypt)
 3. Builds React app to `client/dist/`
@@ -14,10 +17,13 @@
 **Verified:** ✅ Vite outputs to `client/dist` by default (confirmed in vite.config.js)
 
 ### ✅ Start Command
+
 ```json
 "start": "npm run start --prefix server"
 ```
+
 **What it does:**
+
 1. Runs `node server.js` in the server directory
 2. Serves static files from `client/dist` in production
 3. Listens on `process.env.PORT` (Render sets this automatically)
@@ -25,10 +31,13 @@
 **Verified:** ✅ Server serves static files and includes catch-all route for React Router
 
 ### ✅ Postinstall Command
+
 ```json
 "postinstall": "npm install --prefix server && npm install --prefix client"
 ```
+
 **What it does:**
+
 - Automatically installs workspace dependencies after `npm install`
 - Ensures both client and server dependencies are ready
 
@@ -36,16 +45,17 @@
 
 Set these in your Render Web Service dashboard:
 
-| Variable | Value | Purpose |
-|----------|-------|---------|
-| `NODE_ENV` | `production` | Enables production mode (static serving, production CORS) |
-| `RENDER` | `true` | Uses Render-specific database path (`/opt/render/project/src/data/db.json`) |
-| `JWT_SECRET` | `<random-string>` | Secret for JWT token signing (generate 32+ chars) |
-| `PORT` | Auto-set by Render | Server listens on this port (don't set manually) |
+| Variable     | Value              | Purpose                                                                     |
+| ------------ | ------------------ | --------------------------------------------------------------------------- |
+| `NODE_ENV`   | `production`       | Enables production mode (static serving, production CORS)                   |
+| `RENDER`     | `true`             | Uses Render-specific database path (`/opt/render/project/src/data/db.json`) |
+| `JWT_SECRET` | `<random-string>`  | Secret for JWT token signing (generate 32+ chars)                           |
+| `PORT`       | Auto-set by Render | Server listens on this port (don't set manually)                            |
 
 ## Build Output Verification
 
 ### Frontend Build
+
 - **Input:** `client/src/**/*`
 - **Output:** `client/dist/`
 - **Contains:**
@@ -56,6 +66,7 @@ Set these in your Render Web Service dashboard:
   - `icon-*.svg` (PWA icons)
 
 ### Build Test Results
+
 ```bash
 npm run build
 # ✅ Builds successfully
@@ -64,6 +75,7 @@ npm run build
 ```
 
 ### Production Test Results
+
 ```bash
 NODE_ENV=production npm start
 # ✅ Server starts on port 4000
@@ -75,10 +87,12 @@ NODE_ENV=production npm start
 ## Database Configuration
 
 ### Local Development
+
 - Path: `./data/db.json`
 - Created automatically by `ensureDBDirectory()` function
 
 ### Render Production
+
 - Path: `/opt/render/project/src/data/db.json`
 - Persists across deployments
 - Created automatically on first run
@@ -102,13 +116,16 @@ NODE_ENV=production npm start
 ## Final Steps Before Deployment
 
 1. **Test locally in production mode:**
+
    ```bash
    npm run build
    NODE_ENV=production RENDER=true npm start
    ```
+
    Visit http://localhost:4000 and verify all features work.
 
 2. **Push to GitHub:**
+
    ```bash
    git add .
    git commit -m "Ready for Render deployment"
@@ -134,17 +151,20 @@ NODE_ENV=production npm start
 ## Expected Behavior on Render
 
 ### First Deploy
+
 - Build takes ~2-3 minutes
 - Server starts and creates database directory
 - Demo team (code: `123456`) is available
 - Health endpoint at `/health` shows production environment info
 
 ### After 15 Minutes (Free Tier)
+
 - App goes to sleep
 - First request takes ~30 seconds (cold start)
 - Subsequent requests are fast
 
 ### Database Persistence
+
 - Database persists across deployments and restarts
 - Located at `/opt/render/project/src/data/db.json`
 - **Note:** Free tier does NOT persist files across deployments by default
@@ -154,23 +174,28 @@ NODE_ENV=production npm start
 ## Troubleshooting
 
 ### Build fails
+
 - Check that all dependencies are listed in `server/package.json` and `client/package.json`
 - Verify build command: `npm run build`
 
 ### App doesn't start
+
 - Check start command: `npm start`
 - Verify environment variables are set correctly
 - Check Render logs for error messages
 
 ### 404 errors on refresh
+
 - Verify catch-all route exists in `server/server.js`
 - Check that static files are being served from `client/dist`
 
 ### Socket.io connection fails
+
 - Verify `NODE_ENV=production` is set
 - Check CORS configuration in `server/socket.js`
 
 ### Database not persisting
+
 - Verify `RENDER=true` is set (uses correct database path)
 - Check Render logs to confirm database location
 - For guaranteed persistence, consider Render Disk or paid tier

@@ -11,7 +11,8 @@ export default function TeamManagement() {
     const loadTeam = async () => {
       try {
         const data = await authFetch("/api/teams/me");
-        setTeam(data);
+        const normalizedTeam = data?.team ?? data;
+        setTeam(normalizedTeam);
       } catch (err) {
         setError(err.message || "Failed to load team");
       } finally {
@@ -48,7 +49,7 @@ export default function TeamManagement() {
           <div className="mt-4 text-sm text-slate-700">
             Team code:{" "}
             <span className="ml-1 rounded-md bg-blue-50 px-2 py-1 font-semibold text-blue-600">
-              {team.code}
+              {team.code || "—"}
             </span>
           </div>
         )}

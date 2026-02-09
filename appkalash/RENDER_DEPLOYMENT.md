@@ -20,6 +20,7 @@ This guide explains how to deploy TeamStock Pro to Render's free tier as a singl
 ## Step 1: Prepare Repository
 
 1. **Create a GitHub repository** (if not already done):
+
    ```bash
    git init
    git add .
@@ -60,13 +61,14 @@ This guide explains how to deploy TeamStock Pro to Render's free tier as a singl
 
 Add these in Render dashboard under **Environment**:
 
-| Key | Value | Notes |
-|-----|-------|-------|
-| `NODE_ENV` | `production` | Required for production mode |
-| `JWT_SECRET` | `your-secure-random-string` | Change from default! |
-| `RENDER` | `true` | Triggers Render-specific paths |
+| Key          | Value                       | Notes                          |
+| ------------ | --------------------------- | ------------------------------ |
+| `NODE_ENV`   | `production`                | Required for production mode   |
+| `JWT_SECRET` | `your-secure-random-string` | Change from default!           |
+| `RENDER`     | `true`                      | Triggers Render-specific paths |
 
 **Generate a secure JWT_SECRET:**
+
 ```bash
 openssl rand -base64 32
 ```
@@ -76,6 +78,7 @@ openssl rand -base64 32
 Render free tier provides persistent storage at `/opt/render/project/src`.
 
 The app automatically uses this path when `RENDER=true`:
+
 ```javascript
 // Configured in server/server.js
 const DB_PATH = process.env.RENDER
@@ -84,6 +87,7 @@ const DB_PATH = process.env.RENDER
 ```
 
 **Initial database setup:**
+
 - The `data/db.json` file will be copied during build
 - Data persists across deploys on Render free tier
 - To reset database, delete and redeploy
@@ -105,26 +109,31 @@ const DB_PATH = process.env.RENDER
 ## Troubleshooting
 
 ### Build fails
+
 - Check Render build logs
 - Ensure `package.json` has correct scripts
 - Verify Node version compatibility (18+)
 
 ### App runs but shows errors
+
 - Check Render service logs
 - Verify environment variables are set
 - Check `/api/health` endpoint response
 
 ### Database not persisting
+
 - Verify `RENDER=true` in environment variables
 - Check logs for DB_PATH confirmation
 - Free tier may reset disk on service restart
 
 ### Socket.io not connecting
+
 - Ensure CORS is configured for production
 - Check browser console for WebSocket errors
 - Verify Render URL matches your domain
 
 ### PWA not installing
+
 - Ensure manifest.json is served correctly
 - Check service worker registration
 - Test on actual mobile device (not just emulator)
@@ -159,6 +168,7 @@ The server will serve the React build from `client/dist`.
 - **Monthly hours**: 750 hours/month (always-on requires paid tier)
 
 **For production use**, consider upgrading to paid tier for:
+
 - No cold starts
 - Guaranteed persistence
 - Custom domains with SSL
@@ -167,12 +177,14 @@ The server will serve the React build from `client/dist`.
 ## Upgrading to Paid Tier
 
 Benefits:
+
 - Always online (no cold starts)
 - Persistent disk guaranteed
 - Custom domain support
 - More memory and CPU
 
 Steps:
+
 1. Go to Render dashboard
 2. Select your service
 3. Click "Upgrade"
@@ -186,43 +198,51 @@ Steps:
 4. Render auto-provisions SSL certificate
 
 Update environment variable:
+
 - `CLIENT_URL`: `https://app.yourdomain.com`
 
 ## Monitoring
 
 **Render Dashboard:**
+
 - View logs: **Logs** tab
 - Check metrics: **Metrics** tab
 - Monitor disk usage: **Environment** tab
 
 **Health Checks:**
+
 - Render pings `/api/health` automatically
 - Service restarts if health check fails
 
 ## Backup & Recovery
 
 **Backup database:**
+
 ```bash
 # Download from Render shell (if available in paid tier)
 curl https://your-app.onrender.com/api/backup
 ```
 
 **Manual backup** (requires API endpoint):
+
 - Add `/api/backup` route in server.js
 - Download `db.json` periodically
 
 **Restore:**
+
 - Update `data/db.json` in repo
 - Redeploy
 
 ## CI/CD Integration
 
 **Auto-deploy on push:**
+
 1. Enable in Render: **Settings** → **Auto-Deploy**: `Yes`
 2. Push to GitHub `main` branch
 3. Render automatically rebuilds and deploys
 
 **Deploy notifications:**
+
 - Configure in **Settings** → **Notifications**
 - Options: Email, Slack, Discord
 
@@ -232,11 +252,12 @@ curl https://your-app.onrender.com/api/backup
 ✅ Enable HTTPS (automatic on Render)  
 ✅ Rotate secrets periodically  
 ✅ Never commit `.env` files  
-✅ Review Render access logs  
+✅ Review Render access logs
 
 ## Cost Optimization
 
 **Free Tier Tips:**
+
 - Deploy during low-traffic periods
 - Use caching aggressively
 - Monitor build times
@@ -253,20 +274,24 @@ curl https://your-app.onrender.com/api/backup
 ## Quick Reference
 
 **Build locally:**
+
 ```bash
 npm run build
 ```
 
 **Start production server locally:**
+
 ```bash
 NODE_ENV=production npm start
 ```
 
 **Deploy to Render:**
+
 1. Push to GitHub
 2. Render auto-deploys (if enabled)
 
 **Check deployment:**
+
 ```bash
 curl https://your-app.onrender.com/api/health
 ```

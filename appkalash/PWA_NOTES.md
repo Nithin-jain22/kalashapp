@@ -3,6 +3,7 @@
 ## Changes Made
 
 ### 1. **Web App Manifest** (`client/public/manifest.json`)
+
 - Display mode: `standalone` (full-screen app experience)
 - Theme color: `#2f73ff` (TeamStock Pro brand blue)
 - Background color: `#f8fafc` (slate-50)
@@ -11,6 +12,7 @@
 - Shortcuts for quick access to Products and Sales pages
 
 ### 2. **Service Worker** (`client/public/service-worker.js`)
+
 - Installed on page load
 - Cache-first strategy for static assets
 - Network-first strategy for API calls
@@ -19,11 +21,13 @@
 - No external dependencies required
 
 ### 3. **PWA Registration** (`client/src/utils/pwa.js`)
+
 - Simple service worker registration on load
 - Graceful fallback for older browsers
 - Logs to console for debugging
 
 ### 4. **Enhanced HTML** (`client/index.html`)
+
 - Added manifest link
 - Theme-color meta tag for browser UI
 - Apple mobile web app meta tags (iOS support)
@@ -31,12 +35,14 @@
 - Icon links for both web and native app
 
 ### 5. **Mobile-First CSS** (`client/src/index.css`)
+
 - Safe area inset support for devices with notches
 - Disabled tap highlight color on iOS
 - 16px font size for inputs (prevents iOS zoom on focus)
 - Touch-friendly interaction improvements
 
 ### 6. **Touch-Friendly Components** (`client/src/components/Layout.jsx`)
+
 - Hamburger menu: 44px minimum height and width
 - Navigation items: 44px minimum height
 - Logout button: 44px minimum height
@@ -45,16 +51,19 @@
 - `touch-manipulation` class to disable double-tap zoom
 
 ### 7. **Responsive Layout Updates**
+
 - Flexible grid for main content on mobile
 - Sidebar positioned fixed/absolute on mobile, static on desktop
 - Proper padding adjustments for safe areas
 - Responsive font sizes (sm and base variants)
 
 ### 8. **Vite Config Updates** (`client/vite.config.js`)
+
 - Added asset directory configuration
 - Service worker optimization settings
 
 ### 9. **Entry Point Update** (`client/src/main.jsx`)
+
 - Automatically registers service worker on app load
 - No user action required
 
@@ -69,13 +78,14 @@
 ✅ **Mobile UI** — Touch-friendly buttons and responsive layout  
 ✅ **Status Bar** — Matches app theme color  
 ✅ **Start URL** — Configured to `/` for proper routing  
-✅ **Shortcuts** — Quick access to Products and Sales  
+✅ **Shortcuts** — Quick access to Products and Sales
 
 ---
 
 ## Installation Instructions for Users
 
 ### Android (Chrome)
+
 1. Open http://localhost:5173 in Chrome
 2. Tap the menu icon (⋮)
 3. Tap "Install app" or "Add to Home Screen"
@@ -83,6 +93,7 @@
 5. App opens in standalone mode
 
 ### iOS (Safari)
+
 1. Open http://localhost:5173 in Safari
 2. Tap the Share button (↑ at bottom of screen)
 3. Scroll down and tap "Add to Home Screen"
@@ -95,6 +106,7 @@
 ## Files Added/Modified
 
 **Added:**
+
 - `client/public/manifest.json` — PWA manifest
 - `client/public/service-worker.js` — Offline support
 - `client/public/generate-icons.sh` — Icon generation script
@@ -106,6 +118,7 @@
 - `client/src/utils/icons.js` — Icon utility functions
 
 **Modified:**
+
 - `client/index.html` — Added PWA meta tags and manifest link
 - `client/src/main.jsx` — Service worker registration
 - `client/src/index.css` — Safe area and touch improvements
@@ -122,7 +135,7 @@
 ✅ Team creation/joining flow unchanged  
 ✅ Product and sales logic unchanged  
 ✅ Socket.io real-time updates work offline (offline messages queued)  
-✅ Database structure unchanged  
+✅ Database structure unchanged
 
 No breaking changes to existing functionality.
 

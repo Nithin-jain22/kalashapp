@@ -6,6 +6,7 @@ Production-ready, fully local, self-contained team inventory and sales app with 
 **Ready for Render deployment** — Single-server, free tier compatible!
 
 ## Tech Stack
+
 - Backend: Node.js 18+, Express, JSON file DB (./data/db.json), JWT, bcrypt, Socket.io
 - Frontend: React 18, Vite, Tailwind CSS
 - PWA: Service Worker, Web App Manifest, offline support
@@ -14,6 +15,7 @@ Production-ready, fully local, self-contained team inventory and sales app with 
 ## Quick Start
 
 ### Local Development
+
 ```bash
 npm install
 npm run dev
@@ -23,6 +25,7 @@ npm run dev
 - Server: http://localhost:4000
 
 ### Production Build (Local Testing)
+
 ```bash
 npm run build
 NODE_ENV=production npm start
@@ -31,20 +34,23 @@ NODE_ENV=production npm start
 Visit http://localhost:4000 (server serves React build)
 
 ### Deploy to Render
+
 See **[RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)** for complete deployment guide.
 
 **Quick steps:**
+
 1. **Push to GitHub:** Create a new GitHub repository and push your code
 2. **Create Render Web Service:** Connect your GitHub repo to a new Web Service
 3. **Configure Build & Start:**
-	- Build Command: `npm run build`
-	- Start Command: `npm start`
+   - Build Command: `npm run build`
+   - Start Command: `npm start`
 4. **Set Environment Variables:**
-	- `NODE_ENV` = `production`
-	- `RENDER` = `true`
-	- `JWT_SECRET` = (generate a random 32+ char string)
+   - `NODE_ENV` = `production`
+   - `RENDER` = `true`
+   - `JWT_SECRET` = (generate a random 32+ char string)
 
 **Free Tier Notes:**
+
 - Apps go to sleep after 15 minutes of inactivity (first request may be slow)
 - Database persists at `/opt/render/project/src/data/db.json`
 - Cold starts take ~30 seconds — plan accordingly
@@ -54,12 +60,14 @@ See **[RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)** for detailed deployment gui
 ## PWA Installation
 
 ### Android (Chrome)
+
 1. Open the app in Chrome
 2. Tap the menu icon (⋮)
 3. Select "Install app" or "Add to Home Screen"
 4. Tap "Install"
 
 ### iOS (Safari)
+
 1. Open the app in Safari
 2. Tap the Share button (↑ at bottom)
 3. Scroll and tap "Add to Home Screen"
@@ -68,19 +76,23 @@ See **[RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)** for detailed deployment gui
 The app will work offline and cache assets automatically.
 
 ## Demo Data
+
 `data/db.json` includes a sample team and product.
+
 - Team code: `123456`
 - Leader username: `leader`
 - Leader password: `password`
 - Profit PIN: `1234`
 
 ## Core Flows
+
 - Leader creates team (auto 6-digit string team code).
 - Members join with team code (server validates) and enter pending status.
 - Leader approves members.
 - Login uses username + password only.
 
 ## Mobile Features
+
 - Touch-friendly buttons (min 44px height)
 - Responsive layout for phones to tablets
 - Safe area support for notched devices
@@ -88,6 +100,7 @@ The app will work offline and cache assets automatically.
 - Optimized for both portrait and landscape
 
 ## Notes & Decisions
+
 - JSON file database at `./data/db.json` is the only source of truth.
 - Team codes are stored and compared as strings.
 - Realtime updates use Socket.io events for team messages and product updates.
@@ -99,6 +112,7 @@ The app will work offline and cache assets automatically.
 ## Architecture
 
 ### Development Mode
+
 - Client: Vite dev server on port 5173
 - Server: Express on port 4000
 - CORS: Allows localhost:5173
@@ -106,6 +120,7 @@ The app will work offline and cache assets automatically.
 - Database: ./data/db.json
 
 ### Production Mode (Render)
+
 - Server: Express on dynamic port (process.env.PORT)
 - Client: Served from server as static files (client/dist)
 - CORS: Allows same origin

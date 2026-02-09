@@ -16,6 +16,7 @@
 ## 📝 Files Modified
 
 ### `client/index.html`
+
 - Added `manifest.json` link
 - Added `theme-color` meta tag
 - Added Apple mobile web app meta tags
@@ -23,16 +24,19 @@
 - Added icon links for web and native
 
 ### `client/src/main.jsx`
+
 - Added Service Worker registration call
 - Imported `registerServiceWorker()` from utils/pwa.js
 
 ### `client/src/index.css`
+
 - Added safe area inset support
 - Added tap highlight color removal for iOS
 - Set input font-size to 16px (prevents zoom)
 - Added touch interaction improvements
 
 ### `client/src/components/Layout.jsx`
+
 - Updated nav items to 44px minimum height
 - Updated hamburger button to 44px × 44px
 - Updated logout button to 44px height
@@ -41,13 +45,16 @@
 - Added responsive gap and padding
 
 ### `client/vite.config.js`
+
 - Added asset directory configuration
 - Added service worker optimization settings
 
 ### `client/package.json`
+
 - No changes (all dependencies already present)
 
 ### `README.md`
+
 - Added "Now with PWA support" note
 - Added PWA Installation section
 - Added Mobile Features section
@@ -56,6 +63,7 @@
 ## 🔧 Configuration Details
 
 ### manifest.json
+
 ```json
 {
   "name": "TeamStock Pro",
@@ -71,16 +79,21 @@
 ```
 
 ### Service Worker Caching Strategy
+
 - **Static assets**: Cache-first (faster app loading)
 - **API requests**: Network-first (always fresh data)
 - **Offline fallback**: Text message with error status
 
 ### Meta Tags Added
+
 ```html
 <meta name="viewport" content="..., viewport-fit=cover" />
 <meta name="theme-color" content="#2f73ff" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta
+  name="apple-mobile-web-app-status-bar-style"
+  content="black-translucent"
+/>
 <meta name="apple-mobile-web-app-title" content="TeamStock" />
 <link rel="manifest" href="/manifest.json" />
 <link rel="apple-touch-icon" href="/icon-192x192.svg" />
@@ -98,17 +111,20 @@
 ## 🚀 Development & Deployment
 
 ### Development
+
 ```bash
 npm install
 npm run dev
 ```
 
 ### Production Build
+
 ```bash
 npm run build
 ```
 
 ### Testing on Mobile
+
 1. Android: Open http://localhost:5173 in Chrome, tap menu → Install
 2. iOS: Open http://localhost:5173 in Safari, tap share → Add to Home Screen
 3. Or use browser DevTools mobile emulation (F12 → responsive design)
@@ -139,6 +155,7 @@ npm run build
 ## 📞 Support
 
 All PWA features are self-contained. No external services required:
+
 - No Firebase
 - No CDN
 - No cloud storage

@@ -16,6 +16,7 @@ Use this checklist before deploying to Render.
 ## ✅ Local Testing
 
 ### Development Mode
+
 - [x] `npm install` completes successfully
 - [x] `npm run dev` starts both servers
 - [x] Client loads at http://localhost:5173
@@ -25,6 +26,7 @@ Use this checklist before deploying to Render.
 - [x] PWA features work
 
 ### Production Mode
+
 - [x] `npm run build` completes without errors
 - [x] Build creates `client/dist` folder
 - [x] `NODE_ENV=production npm start` works
@@ -50,6 +52,7 @@ Use this checklist before deploying to Render.
 ## 📋 Render Configuration Checklist
 
 ### Service Setup
+
 - [ ] GitHub repository connected
 - [ ] Branch: `main`
 - [ ] Build Command: `npm run build`
@@ -58,12 +61,14 @@ Use this checklist before deploying to Render.
 - [ ] Auto-Deploy: Enabled (optional)
 
 ### Environment Variables
+
 - [ ] `NODE_ENV` = `production`
 - [ ] `RENDER` = `true`
 - [ ] `JWT_SECRET` = `<secure-random-string>` (generate with: `openssl rand -base64 32`)
 - [ ] `CLIENT_URL` = `https://your-app.onrender.com` (optional)
 
 ### After Deployment
+
 - [ ] Build logs show no errors
 - [ ] Service is running
 - [ ] Health check passes: `curl https://your-app.onrender.com/api/health`
@@ -103,22 +108,26 @@ git push origin main
 ## ⚠️ Important Notes
 
 ### Database Persistence
+
 - Render free tier provides `/opt/render/project/src` for persistent storage
 - Database persists across deploys
 - Database may be lost if service is deleted
 - Consider manual backups for production use
 
 ### Cold Starts
+
 - Free tier spins down after 15 minutes inactivity
 - First request after sleep takes 30-60 seconds
 - Paid tier eliminates cold starts
 
 ### Single Server Deployment
+
 - Frontend and backend run on same URL
 - No CORS issues in production (same origin)
 - Simpler deployment than separate services
 
 ### PWA Requirements
+
 - HTTPS required for PWA (Render provides this)
 - Service Worker requires HTTPS (works on Render)
 - Manifest must be accessible
@@ -126,25 +135,27 @@ git push origin main
 ## 🚨 Common Issues
 
 ### Build fails
+
 - **Error**: "Cannot find module"
   - **Fix**: Check package.json dependencies
-  
 - **Error**: "Build timeout"
   - **Fix**: Reduce build time or upgrade plan
 
 ### App doesn't load
+
 - **Error**: White screen
   - **Fix**: Check catch-all route in server.js
-  
 - **Error**: 404 on routes
   - **Fix**: Verify static file serving is enabled
 
 ### Database issues
+
 - **Error**: "Cannot read db.json"
   - **Fix**: Ensure `RENDER=true` is set
   - **Fix**: Check DB_PATH in health endpoint
 
 ### Socket.io doesn't connect
+
 - **Error**: WebSocket connection fails
   - **Fix**: Check CORS configuration
   - **Fix**: Verify Socket.io production config
