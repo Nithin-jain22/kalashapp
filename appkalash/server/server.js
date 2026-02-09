@@ -220,6 +220,7 @@ app.post("/api/products", authMiddleware, leaderOnly, async (req, res) => {
 /* -------------------- SALES -------------------- */
 
 app.post("/api/sales", authMiddleware, async (req, res) => {
+  console.log("JWT user:", req.user);
   const { productId, quantity, actualSellPrice } = req.body;
 
   const { data: product } = await supabase
