@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useSocket } from "../context/SocketContext";
+import { io } from "socket.io-client";
+
+const socket = io();
 
 export default function Profits() {
   const { authFetch } = useAuth();
-  const socket = useSocket();
-
   const [totalProfit, setTotalProfit] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -13,9 +13,12 @@ export default function Profits() {
   const loadProfits = async () => {
     try {
       setLoading(true);
+      const pin = prompt("Enter 4-digit PIN");
+      if (!pin) return;
+
       const data = await authFetch("/api/profits", {
         method: "POST",
-        body: JSON.stringify({ pin: prompt("Enter 4-digit PIN") }),
+        body: JSON.stringify({ pin }),
       });
 
       setTotalProfit(data.totalProfit || 0);
@@ -30,18 +33,12 @@ export default function Profits() {
   useEffect(() => {
     loadProfits();
 
-    if (!socket) return;
-
-    const handler = () => {
-      loadProfits();
-    };
-
-    socket.on("productUpdate", handler);
+    socket.on("productUpdate", loadProfits);
 
     return () => {
-      socket.off("productUpdate", handler);
+      socket.off("productUpdate", loadProfits);
     };
-  }, [socket]);
+  }, []);
 
   if (loading) {
     return <div className="p-4 text-slate-500">Loading profits...</div>;
