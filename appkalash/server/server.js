@@ -4,7 +4,6 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createServer } from "http";
 import { v4 as uuidv4 } from "uuid";
-import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { initSocket, emitToTeam } from "./socket.js";
@@ -13,13 +12,7 @@ import { supabase } from "./supabase.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use Render persistent storage path if on Render, otherwise local path
-// Render free tier persists data at /opt/render/project/src
-const DB_PATH = process.env.RENDER
-  ? "/opt/render/project/src/data/db.json"
-  : path.resolve(__dirname, "../data/db.json");
-
-const JWT_SECRET = process.env.JWT_SECRET || "teamstock-pro-secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -27,157 +20,62 @@ const app = express();
 const httpServer = createServer(app);
 initSocket(httpServer);
 
-// CORS configuration for both development and production
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:4000",
-  process.env.CLIENT_URL, // Set this in Render environment variables
-].filter(Boolean);
+/* -------------------- MIDDLEWARE -------------------- */
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
-      // In production, allow same origin (single server deployment)
-      if (NODE_ENV === "production" && !origin.includes("localhost")) {
-        return callback(null, true);
-      }
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Allow all for simplicity on Render
-    },
-    credentials: true,
-  })
-);
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-
-let writeQueue = Promise.resolve();
-
-// Ensure database directory exists before any read/write operations
-async function ensureDBExists() {
-  const dbDir = path.dirname(DB_PATH);
-
-  // Ensure directory exists
-  try {
-    await fs.access(dbDir);
-  } catch {
-    await fs.mkdir(dbDir, { recursive: true });
-  }
-
-  // Ensure db.json exists
-  try {
-    await fs.access(DB_PATH);
-  } catch {
-    const initialData = {
-      teams: []
-    };
-    await fs.writeFile(DB_PATH, JSON.stringify(initialData, null, 2));
-  }
-}
-
-async function readDB() {
-  await ensureDBExists();
-  const raw = await fs.readFile(DB_PATH, "utf-8");
-  return JSON.parse(raw);
-}
-
-function writeDB(data) {
-  writeQueue = writeQueue.then(async () => {
-    await ensureDBExists();
-    await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
-  });
-  return writeQueue;
-}
-
-async function updateDB(mutator) {
-  const db = await readDB();
-  const result = await mutator(db);
-  await writeDB(db);
-  return result;
-}
-
-function generateTeamCode(existingCodes) {
-  let code = "";
-  while (!code || existingCodes.has(code)) {
-    code = String(Math.floor(100000 + Math.random() * 900000));
-  }
-  return code;
-}
-
-function sanitizeTeam(team) {
-  const sanitizedMembers = team.members.map((m) => ({
-    id: m.id,
-    username: m.username,
-    name: m.name,
-    role: m.role,
-    status: m.status,
-  }));
-  return {
-    ...team,
-    members: sanitizedMembers,
-  };
-}
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ message: "Unauthorized" });
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    return next();
-  } catch (err) {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
     return res.status(401).json({ message: "Invalid token" });
   }
 }
 
 function leaderOnly(req, res, next) {
-  if (req.user?.role !== "leader") {
+  if (req.user.role !== "leader") {
     return res.status(403).json({ message: "Leader access only" });
   }
-  return next();
+  next();
 }
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", env: NODE_ENV, dbPath: DB_PATH });
-});
+/* -------------------- STATIC CLIENT -------------------- */
 
-// Serve static files from React build in production
 if (NODE_ENV === "production") {
   const clientBuildPath = path.resolve(__dirname, "../client/dist");
   app.use(express.static(clientBuildPath));
-  console.log(`Serving static files from: ${clientBuildPath}`);
 }
 
+/* -------------------- AUTH -------------------- */
+
 app.post("/api/auth/register-leader", async (req, res) => {
-  const { teamName, leaderName, username, password, pin } = req.body || {};
+  const { teamName, leaderName, username, password, pin } = req.body;
 
   if (!teamName || !leaderName || !username || !password || !pin) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return res.status(400).json({ message: "Missing fields" });
   }
 
-  if (!/^\d{4}$/.test(String(pin))) {
+  if (!/^\d{4}$/.test(pin)) {
     return res.status(400).json({ message: "PIN must be 4 digits" });
   }
 
   try {
-    // Check if username already exists
-    const { data: existingUser } = await supabase
+    const { data: existing } = await supabase
       .from("members")
       .select("id")
       .eq("username", username)
       .maybeSingle();
 
-    if (existingUser) {
+    if (existing) {
       return res.status(400).json({ message: "Username already exists" });
     }
 
-    const teamId = uuidv4();
-    const leaderId = uuidv4();
-
-    // Generate unique team code
     let teamCode;
     while (true) {
       teamCode = String(Math.floor(100000 + Math.random() * 900000));
@@ -189,19 +87,18 @@ app.post("/api/auth/register-leader", async (req, res) => {
       if (!data) break;
     }
 
+    const teamId = uuidv4();
+    const leaderId = uuidv4();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Insert team
-    const { error: teamError } = await supabase.from("teams").insert({
+    await supabase.from("teams").insert({
       id: teamId,
       code: teamCode,
       name: teamName,
-      pin: String(pin),
+      pin,
     });
-    if (teamError) throw teamError;
 
-    // Insert leader
-    const { error: memberError } = await supabase.from("members").insert({
+    await supabase.from("members").insert({
       id: leaderId,
       team_id: teamId,
       username,
@@ -210,7 +107,6 @@ app.post("/api/auth/register-leader", async (req, res) => {
       role: "leader",
       status: "active",
     });
-    if (memberError) throw memberError;
 
     const token = jwt.sign(
       { userId: leaderId, teamId, role: "leader" },
@@ -218,321 +114,205 @@ app.post("/api/auth/register-leader", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    return res.json({
+    res.json({
       token,
-      user: {
-        id: leaderId,
-        username,
-        name: leaderName,
-        role: "leader",
-        status: "active",
-      },
-      team: {
-        id: teamId,
-        code: teamCode,
-        name: teamName,
-      },
+      user: { id: leaderId, username, name: leaderName, role: "leader" },
+      team: { id: teamId, code: teamCode, name: teamName },
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.post("/api/auth/join-team", async (req, res) => {
-  const { teamCode, name, username, password } = req.body || {};
-  if (!teamCode || !name || !username || !password) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
-
-  try {
-    await updateDB(async (db) => {
-      const team = db.teams.find((t) => t.code === String(teamCode));
-      if (!team) throw new Error("Team not found");
-
-      const existingUsers = db.teams.flatMap((t) => t.members);
-      if (existingUsers.some((u) => u.username === username)) {
-        throw new Error("Username already exists");
-      }
-
-      const passwordHash = await bcrypt.hash(password, 10);
-      team.members.push({
-        id: uuidv4(),
-        username,
-        name,
-        passwordHash,
-        role: "member",
-        status: "pending",
-      });
-    });
-
-    return res.json({ message: "Request submitted for approval" });
-  } catch (err) {
-    return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) {
-    return res.status(400).json({ message: "Missing credentials" });
-  }
+  const { username, password } = req.body;
 
   try {
-    const db = await readDB();
-    const team = db.teams.find((t) =>
-      t.members.some((m) => m.username === username)
-    );
-    if (!team) return res.status(400).json({ message: "Invalid login" });
+    const { data: member } = await supabase
+      .from("members")
+      .select("*")
+      .eq("username", username)
+      .single();
 
-    const user = team.members.find((m) => m.username === username);
-    if (!user) return res.status(400).json({ message: "Invalid login" });
+    if (!member) return res.status(400).json({ message: "Invalid login" });
 
-    const match = await bcrypt.compare(password, user.passwordHash);
+    const match = await bcrypt.compare(password, member.password_hash);
     if (!match) return res.status(400).json({ message: "Invalid login" });
-    if (user.status !== "active") {
+
+    if (member.status !== "active") {
       return res.status(403).json({ message: "Awaiting approval" });
     }
 
     const token = jwt.sign(
-      { userId: user.id, teamId: team.id, role: user.role },
+      {
+        userId: member.id,
+        teamId: member.team_id,
+        role: member.role,
+      },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    return res.json({
+    res.json({
       token,
       user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        role: user.role,
-        status: user.status,
+        id: member.id,
+        username: member.username,
+        name: member.name,
+        role: member.role,
       },
-      team: sanitizeTeam(team),
     });
-  } catch (err) {
-    return res.status(500).json({ message: "Server error" });
+  } catch {
+    res.status(400).json({ message: "Invalid login" });
   }
 });
 
+/* -------------------- TEAMS -------------------- */
+
 app.get("/api/teams/me", authMiddleware, async (req, res) => {
-  try {
-    const { data: team, error } = await supabase
-      .from("teams")
-      .select("id, code, name")
-      .eq("id", req.user.teamId)
-      .single();
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id, code, name")
+    .eq("id", req.user.teamId)
+    .single();
 
-    if (error || !team) {
-      return res.status(404).json({ message: "Team not found" });
-    }
-
-    return res.json(team);
-  } catch (err) {
-    console.error("teams/me error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
+  if (!team) return res.status(404).json({ message: "Team not found" });
+  res.json(team);
 });
 
 app.get("/api/teams/members", authMiddleware, leaderOnly, async (req, res) => {
-  const db = await readDB();
-  const team = db.teams.find((t) => t.id === req.user.teamId);
-  if (!team) return res.status(404).json({ message: "Team not found" });
-  return res.json(sanitizeTeam(team).members);
+  const { data } = await supabase
+    .from("members")
+    .select("id, username, name, role, status")
+    .eq("team_id", req.user.teamId);
+
+  res.json(data);
 });
 
-app.post(
-  "/api/teams/members/:memberId/approve",
-  authMiddleware,
-  leaderOnly,
-  async (req, res) => {
-    const { memberId } = req.params;
-    try {
-      await updateDB(async (db) => {
-        const team = db.teams.find((t) => t.id === req.user.teamId);
-        if (!team) throw new Error("Team not found");
-        const member = team.members.find((m) => m.id === memberId);
-        if (!member) throw new Error("Member not found");
-        member.status = "active";
-      });
-      return res.json({ message: "Member approved" });
-    } catch (err) {
-      return res.status(400).json({ message: err.message });
-    }
-  }
-);
-
-app.delete(
-  "/api/teams/members/:memberId",
-  authMiddleware,
-  leaderOnly,
-  async (req, res) => {
-    const { memberId } = req.params;
-    try {
-      await updateDB(async (db) => {
-        const team = db.teams.find((t) => t.id === req.user.teamId);
-        if (!team) throw new Error("Team not found");
-        team.members = team.members.filter((m) => m.id !== memberId);
-      });
-      return res.json({ message: "Member removed" });
-    } catch (err) {
-      return res.status(400).json({ message: err.message });
-    }
-  }
-);
+/* -------------------- PRODUCTS -------------------- */
 
 app.get("/api/products", authMiddleware, async (req, res) => {
-  const db = await readDB();
-  const team = db.teams.find((t) => t.id === req.user.teamId);
-  if (!team) return res.status(404).json({ message: "Team not found" });
-  return res.json(team.products);
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("team_id", req.user.teamId);
+
+  res.json(data);
 });
 
 app.post("/api/products", authMiddleware, leaderOnly, async (req, res) => {
-  const { name, quantity, buyPrice, targetPrice } = req.body || {};
-  if (!name || quantity == null || buyPrice == null || targetPrice == null) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
+  const { name, quantity, buyPrice, targetPrice } = req.body;
 
-  try {
-    let createdProduct;
-    await updateDB(async (db) => {
-      const team = db.teams.find((t) => t.id === req.user.teamId);
-      if (!team) throw new Error("Team not found");
-      createdProduct = {
-        id: uuidv4(),
-        name,
-        quantity: Number(quantity),
-        buyPrice: Number(buyPrice),
-        targetPrice: Number(targetPrice),
-        createdAt: new Date().toISOString(),
-      };
-      team.products.push(createdProduct);
-    });
+  const { data } = await supabase.from("products").insert({
+    id: uuidv4(),
+    team_id: req.user.teamId,
+    name,
+    quantity,
+    buy_price: buyPrice,
+    target_price: targetPrice,
+  }).select().single();
 
-    emitToTeam(req.user.teamId, "productUpdate", { type: "add" });
-    return res.json(createdProduct);
-  } catch (err) {
-    return res.status(400).json({ message: err.message });
-  }
+  emitToTeam(req.user.teamId, "productUpdate");
+  res.json(data);
 });
 
-app.get("/api/sales", authMiddleware, async (req, res) => {
-  const db = await readDB();
-  const team = db.teams.find((t) => t.id === req.user.teamId);
-  if (!team) return res.status(404).json({ message: "Team not found" });
-  return res.json(team.sales);
-});
+/* -------------------- SALES -------------------- */
 
 app.post("/api/sales", authMiddleware, async (req, res) => {
-  const { productId, quantity, actualSellPrice } = req.body || {};
-  if (!productId || quantity == null || actualSellPrice == null) {
-    return res.status(400).json({ message: "Missing required fields" });
+  const { productId, quantity, actualSellPrice } = req.body;
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .single();
+
+  if (!product) return res.status(400).json({ message: "Product not found" });
+  if (actualSellPrice < product.target_price) {
+    return res.status(400).json({ message: "Price below target" });
   }
 
-  try {
-    let saleRecord;
-    await updateDB(async (db) => {
-      const team = db.teams.find((t) => t.id === req.user.teamId);
-      if (!team) throw new Error("Team not found");
-      const product = team.products.find((p) => p.id === productId);
-      if (!product) throw new Error("Product not found");
+  const profit =
+    (actualSellPrice - product.buy_price) * Number(quantity);
 
-      const qty = Number(quantity);
-      const price = Number(actualSellPrice);
+  await supabase.from("products").update({
+    quantity: product.quantity - quantity,
+  }).eq("id", productId);
 
-      if (price < product.targetPrice) {
-        throw new Error("Actual sell price must be >= target price");
-      }
-      if (qty <= 0 || qty > product.quantity) {
-        throw new Error("Invalid quantity");
-      }
+  const { data } = await supabase.from("sales").insert({
+    id: uuidv4(),
+    team_id: req.user.teamId,
+    product_id: productId,
+    product_name: product.name,
+    quantity,
+    actual_sell_price: actualSellPrice,
+    profit,
+    sold_by: req.user.userId,
+  }).select().single();
 
-      product.quantity -= qty;
-      const profit = (price - product.buyPrice) * qty;
-
-      saleRecord = {
-        id: uuidv4(),
-        productId: product.id,
-        productName: product.name,
-        quantity: qty,
-        buyPrice: product.buyPrice,
-        targetPrice: product.targetPrice,
-        actualSellPrice: price,
-        profit,
-        soldBy: req.user.userId,
-        soldAt: new Date().toISOString(),
-      };
-
-      team.sales.push(saleRecord);
-    });
-
-    emitToTeam(req.user.teamId, "productUpdate", { type: "sale" });
-    return res.json(saleRecord);
-  } catch (err) {
-    return res.status(400).json({ message: err.message });
-  }
+  emitToTeam(req.user.teamId, "productUpdate");
+  res.json(data);
 });
 
-app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
-  const { pin } = req.body || {};
-  if (!pin) return res.status(400).json({ message: "PIN required" });
-
-  const db = await readDB();
-  const team = db.teams.find((t) => t.id === req.user.teamId);
-  if (!team) return res.status(404).json({ message: "Team not found" });
-  if (String(pin) !== String(team.pin)) {
-    return res.status(403).json({ message: "Invalid PIN" });
-  }
-
-  const totalProfit = team.sales.reduce((sum, sale) => sum + sale.profit, 0);
-  return res.json({ totalProfit, sales: team.sales });
-});
+/* -------------------- MESSAGES -------------------- */
 
 app.get("/api/messages", authMiddleware, async (req, res) => {
-  const db = await readDB();
-  const team = db.teams.find((t) => t.id === req.user.teamId);
-  if (!team) return res.status(404).json({ message: "Team not found" });
-  return res.json(team.messages || []);
+  const { data } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("team_id", req.user.teamId)
+    .order("created_at", { ascending: false });
+
+  res.json(data);
 });
 
 app.post("/api/messages", authMiddleware, leaderOnly, async (req, res) => {
-  const { text } = req.body || {};
-  if (!text) return res.status(400).json({ message: "Text required" });
+  const { text } = req.body;
 
-  try {
-    let message;
-    await updateDB(async (db) => {
-      const team = db.teams.find((t) => t.id === req.user.teamId);
-      if (!team) throw new Error("Team not found");
-      message = {
-        id: uuidv4(),
-        text,
-        createdAt: new Date().toISOString(),
-        createdBy: req.user.userId,
-      };
-      team.messages.push(message);
-    });
+  const { data } = await supabase.from("messages").insert({
+    id: uuidv4(),
+    team_id: req.user.teamId,
+    text,
+    created_by: req.user.userId,
+  }).select().single();
 
-    emitToTeam(req.user.teamId, "teamMessage", message);
-    return res.json(message);
-  } catch (err) {
-    return res.status(400).json({ message: err.message });
-  }
+  emitToTeam(req.user.teamId, "teamMessage", data);
+  res.json(data);
 });
 
-// Catch-all route: serve React index.html for client-side routing
-// Must be AFTER all API routes
+/* -------------------- PROFITS -------------------- */
+
+app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
+  const { pin } = req.body;
+
+  const { data: team } = await supabase
+    .from("teams")
+    .select("pin")
+    .eq("id", req.user.teamId)
+    .single();
+
+  if (!team || team.pin !== pin) {
+    return res.status(403).json({ message: "Invalid PIN" });
+  }
+
+  const { data: sales } = await supabase
+    .from("sales")
+    .select("profit")
+    .eq("team_id", req.user.teamId);
+
+  const totalProfit = sales.reduce((s, x) => s + x.profit, 0);
+  res.json({ totalProfit });
+});
+
+/* -------------------- SPA FALLBACK -------------------- */
+
 if (NODE_ENV === "production") {
   app.get("*", (req, res) => {
-    const indexPath = path.resolve(__dirname, "../client/dist/index.html");
-    res.sendFile(indexPath);
+    res.sendFile(path.resolve(__dirname, "../client/dist/index.html"));
   });
 }
 
 httpServer.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Environment: ${NODE_ENV}`);
-  console.log(`Database: ${DB_PATH}`);
+  console.log(`Server running on port ${PORT}`);
 });
