@@ -317,10 +317,22 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 app.get("/api/teams/me", authMiddleware, async (req, res) => {
-  const db = await readDB();
-  const team = db.teams.find((t) => t.id === req.user.teamId);
-  if (!team) return res.status(404).json({ message: "Team not found" });
-  return res.json(sanitizeTeam(team));
+  try {
+    const { data: team, error } = await supabase
+      .from("teams")
+      .select("id, code, name")
+      .eq("id", req.user.teamId)
+      .single();
+
+    if (error || !team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    return res.json(team);
+  } catch (err) {
+    console.error("teams/me error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
 });
 
 app.get("/api/teams/members", authMiddleware, leaderOnly, async (req, res) => {
