@@ -15,9 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not defined");
-}
+if (!JWT_SECRET) throw new Error("JWT_SECRET missing");
 
 const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -32,9 +30,8 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
+  const token = req.headers.authorization?.startsWith("Bearer ")
+    ? req.headers.authorization.slice(7)
     : null;
 
   if (!token) return res.status(401).json({ message: "Unauthorized" });
@@ -43,13 +40,13 @@ function authMiddleware(req, res, next) {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch {
-    return res.status(401).json({ message: "Invalid token" });
+    res.status(401).json({ message: "Invalid token" });
   }
 }
 
 function leaderOnly(req, res, next) {
   if (req.user.role !== "leader") {
-    return res.status(403).json({ message: "Leader access only" });
+    return res.status(403).json({ message: "Leader only" });
   }
   next();
 }
@@ -57,8 +54,7 @@ function leaderOnly(req, res, next) {
 /* -------------------- STATIC CLIENT -------------------- */
 
 if (NODE_ENV === "production") {
-  const clientBuildPath = path.resolve(__dirname, "../client/dist");
-  app.use(express.static(clientBuildPath));
+  app.use(express.static(path.resolve(__dirname, "../client/dist")));
 }
 
 /* -------------------- AUTH -------------------- */
@@ -74,172 +70,132 @@ app.post("/api/auth/register-leader", async (req, res) => {
     return res.status(400).json({ message: "PIN must be 4 digits" });
   }
 
-  try {
-    const { data: existing } = await supabase
-      .from("members")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
+  const { data: exists } = await supabase
+    .from("members")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
 
-    if (existing) {
-      return res.status(400).json({ message: "Username already exists" });
-    }
-
-    let teamCode;
-    while (true) {
-      teamCode = String(Math.floor(100000 + Math.random() * 900000));
-      const { data } = await supabase
-        .from("teams")
-        .select("id")
-        .eq("code", teamCode)
-        .maybeSingle();
-      if (!data) break;
-    }
-
-    const teamId = uuidv4();
-    const leaderId = uuidv4();
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    await supabase.from("teams").insert({
-      id: teamId,
-      code: teamCode,
-      name: teamName,
-      pin,
-    });
-
-    await supabase.from("members").insert({
-      id: leaderId,
-      team_id: teamId,
-      username,
-      name: leaderName,
-      password_hash: passwordHash,
-      role: "leader",
-      status: "active",
-    });
-
-    const token = jwt.sign(
-      { userId: leaderId, teamId, role: "leader" },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    res.json({
-      token,
-      user: { id: leaderId, username, name: leaderName, role: "leader" },
-      team: { id: teamId, code: teamCode, name: teamName },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+  if (exists) {
+    return res.status(400).json({ message: "Username already exists" });
   }
+
+  let teamCode;
+  while (true) {
+    teamCode = String(Math.floor(100000 + Math.random() * 900000));
+    const { data } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("code", teamCode)
+      .maybeSingle();
+    if (!data) break;
+  }
+
+  const teamId = uuidv4();
+  const leaderId = uuidv4();
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await supabase.from("teams").insert({
+    id: teamId,
+    code: teamCode,
+    name: teamName,
+    pin,
+  });
+
+  await supabase.from("members").insert({
+    id: leaderId,
+    team_id: teamId,
+    username,
+    name: leaderName,
+    password_hash: passwordHash,
+    role: "leader",
+    status: "active",
+  });
+
+  const token = jwt.sign(
+    { userId: leaderId, teamId, role: "leader" },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.json({
+    token,
+    user: { id: leaderId, username, name: leaderName, role: "leader" },
+    team: { id: teamId, code: teamCode, name: teamName },
+  });
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
 
-  try {
-    const { data: member } = await supabase
-      .from("members")
-      .select("*")
-      .eq("username", username)
-      .single();
+  const { data: member } = await supabase
+    .from("members")
+    .select("*")
+    .eq("username", username)
+    .single();
 
-    if (!member) return res.status(400).json({ message: "Invalid login" });
+  if (!member) return res.status(400).json({ message: "Invalid login" });
 
-    const match = await bcrypt.compare(password, member.password_hash);
-    if (!match) return res.status(400).json({ message: "Invalid login" });
+  const ok = await bcrypt.compare(password, member.password_hash);
+  if (!ok) return res.status(400).json({ message: "Invalid login" });
 
-    if (member.status !== "active") {
-      return res.status(403).json({ message: "Awaiting approval" });
-    }
-
-    const token = jwt.sign(
-      { userId: member.id, teamId: member.team_id, role: member.role },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: member.id,
-        username: member.username,
-        name: member.name,
-        role: member.role,
-      },
-    });
-  } catch {
-    res.status(400).json({ message: "Invalid login" });
+  if (member.status !== "active") {
+    return res.status(403).json({ message: "Awaiting approval" });
   }
+
+  const token = jwt.sign(
+    { userId: member.id, teamId: member.team_id, role: member.role },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.json({
+    token,
+    user: {
+      id: member.id,
+      username: member.username,
+      name: member.name,
+      role: member.role,
+    },
+  });
 });
 
 app.post("/api/auth/join-team", async (req, res) => {
   const { teamCode, name, username, password } = req.body;
 
-  if (!teamCode || !name || !username || !password) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("code", teamCode)
+    .maybeSingle();
 
-  try {
-    const { data: existing } = await supabase
-      .from("members")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
+  if (!team) return res.status(404).json({ message: "Team not found" });
 
-    if (existing) {
-      return res.status(400).json({ message: "Username already exists" });
-    }
+  const hash = await bcrypt.hash(password, 10);
 
-    const { data: team, error: teamError } = await supabase
-      .from("teams")
-      .select("id")
-      .eq("code", teamCode)
-      .maybeSingle();
+  await supabase.from("members").insert({
+    id: uuidv4(),
+    team_id: team.id,
+    username,
+    name,
+    password_hash: hash,
+    role: "member",
+    status: "pending",
+  });
 
-    if (teamError || !team) {
-      return res.status(404).json({ message: "Team not found" });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const { error: insertError } = await supabase.from("members").insert({
-      id: uuidv4(),
-      team_id: team.id,
-      username,
-      name,
-      password_hash: passwordHash,
-      role: "member",
-      status: "pending",
-    });
-
-    if (insertError) {
-      return res.status(400).json({ message: insertError.message });
-    }
-
-    res.json({ message: "Request sent for approval" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  res.json({ message: "Request sent for approval" });
 });
 
 /* -------------------- TEAMS -------------------- */
 
 app.get("/api/teams/me", authMiddleware, async (req, res) => {
-  console.log("JWT user:", req.user);
-
-  const { data: team, error } = await supabase
+  const { data: team } = await supabase
     .from("teams")
     .select("id, code, name")
     .eq("id", req.user.teamId)
     .single();
 
-  if (error) {
-    console.error("Team fetch error:", error);
-    return res.status(404).json({ message: "Team not found" });
-  }
-
+  if (!team) return res.status(404).json({ message: "Team not found" });
   res.json(team);
 });
 
@@ -252,28 +208,17 @@ app.get("/api/teams/members", authMiddleware, leaderOnly, async (req, res) => {
   res.json(data);
 });
 
-app.patch(
-  "/api/teams/members/:id/approve",
-  authMiddleware,
-  leaderOnly,
-  async (req, res) => {
-    const memberId = req.params.id;
+app.patch("/api/teams/members/:id/approve", authMiddleware, leaderOnly, async (req, res) => {
+  const { data } = await supabase
+    .from("members")
+    .update({ status: "active" })
+    .eq("id", req.params.id)
+    .eq("team_id", req.user.teamId)
+    .select()
+    .single();
 
-    const { data: updated, error } = await supabase
-      .from("members")
-      .update({ status: "active" })
-      .eq("id", memberId)
-      .eq("team_id", req.user.teamId)
-      .select("id, username, name, role, status")
-      .single();
-
-    if (error || !updated) {
-      return res.status(404).json({ message: "Member not found" });
-    }
-
-    res.json(updated);
-  }
-);
+  res.json(data);
+});
 
 /* -------------------- PRODUCTS -------------------- */
 
@@ -309,15 +254,10 @@ app.post("/api/products", authMiddleware, leaderOnly, async (req, res) => {
 /* -------------------- SALES -------------------- */
 
 app.post("/api/sales", authMiddleware, async (req, res) => {
-  console.log("JWT user:", req.user);
+  const { productId, quantity, actualSellPrice } = req.body;
 
-  const productId = req.body.productId;
-  const quantity = Number(req.body.quantity);
-  const actualSellPrice = Number(req.body.actualSellPrice);
-
-  if (Number.isNaN(quantity) || Number.isNaN(actualSellPrice)) {
-    return res.status(400).json({ message: "Invalid quantity or price" });
-  }
+  const qty = Number(quantity);
+  const price = Number(actualSellPrice);
 
   const { data: product } = await supabase
     .from("products")
@@ -326,15 +266,15 @@ app.post("/api/sales", authMiddleware, async (req, res) => {
     .single();
 
   if (!product) return res.status(400).json({ message: "Product not found" });
-  if (actualSellPrice < product.target_price) {
+  if (price < product.target_price) {
     return res.status(400).json({ message: "Price below target" });
   }
 
-  const profit = (actualSellPrice - product.buy_price) * quantity;
+  const profit = (price - product.buy_price) * qty;
 
   await supabase
     .from("products")
-    .update({ quantity: product.quantity - quantity })
+    .update({ quantity: product.quantity - qty })
     .eq("id", productId);
 
   const { data } = await supabase
@@ -344,8 +284,8 @@ app.post("/api/sales", authMiddleware, async (req, res) => {
       team_id: req.user.teamId,
       product_id: productId,
       product_name: product.name,
-      quantity,
-      actual_sell_price: actualSellPrice,
+      quantity: qty,
+      actual_sell_price: price,
       profit,
       sold_by: req.user.userId,
     })
@@ -357,46 +297,12 @@ app.post("/api/sales", authMiddleware, async (req, res) => {
 });
 
 app.get("/api/sales", authMiddleware, async (req, res) => {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("sales")
     .select("*")
     .eq("team_id", req.user.teamId)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    return res.status(400).json({ message: error.message });
-  }
-
-  res.json(data);
-});
-
-/* -------------------- MESSAGES -------------------- */
-
-app.get("/api/messages", authMiddleware, async (req, res) => {
-  const { data } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("team_id", req.user.teamId)
-    .order("created_at", { ascending: false });
-
-  res.json(data);
-});
-
-app.post("/api/messages", authMiddleware, leaderOnly, async (req, res) => {
-  const { text } = req.body;
-
-  const { data } = await supabase
-    .from("messages")
-    .insert({
-      id: uuidv4(),
-      team_id: req.user.teamId,
-      text,
-      created_by: req.user.userId,
-    })
-    .select()
-    .single();
-
-  emitToTeam(req.user.teamId, "teamMessage", data);
   res.json(data);
 });
 
@@ -420,19 +326,19 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
     .select("profit")
     .eq("team_id", req.user.teamId);
 
-  const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+  const totalProfit = sales.reduce((s, x) => s + x.profit, 0);
   res.json({ totalProfit });
 });
 
 /* -------------------- SPA FALLBACK -------------------- */
 
 if (NODE_ENV === "production") {
-  app.get("*", (req, res) => {
+  app.get("*", (_, res) => {
     res.sendFile(path.resolve(__dirname, "../client/dist/index.html"));
   });
 }
 
-/* -------------------- START SERVER -------------------- */
+/* -------------------- START -------------------- */
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
