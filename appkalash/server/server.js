@@ -152,71 +152,89 @@ if (NODE_ENV === "production") {
 
 app.post("/api/auth/register-leader", async (req, res) => {
   const { teamName, leaderName, username, password, pin } = req.body || {};
+
   if (!teamName || !leaderName || !username || !password || !pin) {
     return res.status(400).json({ message: "Missing required fields" });
   }
+
   if (!/^\d{4}$/.test(String(pin))) {
     return res.status(400).json({ message: "PIN must be 4 digits" });
   }
 
   try {
-    const result = await updateDB(async (db) => {
-      const existingUsers = db.teams.flatMap((t) => t.members);
-      if (existingUsers.some((u) => u.username === username)) {
-        throw new Error("Username already exists");
-      }
+    // Check if username already exists
+    const { data: existingUser } = await supabase
+      .from("members")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle();
 
-      const existingCodes = new Set(db.teams.map((t) => t.code));
-      const code = generateTeamCode(existingCodes);
-      const teamId = uuidv4();
-      const leaderId = uuidv4();
-      const passwordHash = await bcrypt.hash(password, 10);
+    if (existingUser) {
+      return res.status(400).json({ message: "Username already exists" });
+    }
 
-      const team = {
-        id: teamId,
-        code,
-        name: teamName,
-        pin: String(pin),
-        members: [
-          {
-            id: leaderId,
-            username,
-            name: leaderName,
-            passwordHash,
-            role: "leader",
-            status: "active",
-          },
-        ],
-        products: [],
-        sales: [],
-        messages: [],
-      };
+    const teamId = uuidv4();
+    const leaderId = uuidv4();
 
-      db.teams.push(team);
+    // Generate unique team code
+    let teamCode;
+    while (true) {
+      teamCode = String(Math.floor(100000 + Math.random() * 900000));
+      const { data } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("code", teamCode)
+        .maybeSingle();
+      if (!data) break;
+    }
 
-      const token = jwt.sign(
-        { userId: leaderId, teamId, role: "leader" },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+    const passwordHash = await bcrypt.hash(password, 10);
 
-      const leader = team.members[0];
-      return {
-        token,
-        user: {
-          id: leader.id,
-          username: leader.username,
-          name: leader.name,
-          role: leader.role,
-          status: leader.status,
-        },
-        team: sanitizeTeam(team),
-      };
+    // Insert team
+    const { error: teamError } = await supabase.from("teams").insert({
+      id: teamId,
+      code: teamCode,
+      name: teamName,
+      pin: String(pin),
     });
+    if (teamError) throw teamError;
 
-    return res.json(result);
+    // Insert leader
+    const { error: memberError } = await supabase.from("members").insert({
+      id: leaderId,
+      team_id: teamId,
+      username,
+      name: leaderName,
+      password_hash: passwordHash,
+      role: "leader",
+      status: "active",
+    });
+    if (memberError) throw memberError;
+
+    const token = jwt.sign(
+      { userId: leaderId, teamId, role: "leader" },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.json({
+      token,
+      user: {
+        id: leaderId,
+        username,
+        name: leaderName,
+        role: "leader",
+        status: "active",
+      },
+      team: {
+        id: teamId,
+        code: teamCode,
+        name: teamName,
+      },
+    });
   } catch (err) {
-    return res.status(400).json({ message: err.message });
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
