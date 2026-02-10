@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { io } from "socket.io-client";
-
-const socket = io();
 
 export default function Profits() {
-  const { authFetch } = useAuth();
+  const { authFetch, user, socket } = useAuth();
   const [totalProfit, setTotalProfit] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadProfits = async () => {
+    if (user?.role !== "leader") return;
     try {
       setLoading(true);
       const pin = prompt("Enter 4-digit PIN");
@@ -31,14 +29,26 @@ export default function Profits() {
   };
 
   useEffect(() => {
+    if (user?.role !== "leader") {
+      setLoading(false);
+      return undefined;
+    }
+
     loadProfits();
 
-    socket.on("productUpdate", loadProfits);
+    if (socket) {
+      socket.on("productUpdate", loadProfits);
+      return () => {
+        socket.off("productUpdate", loadProfits);
+      };
+    }
 
-    return () => {
-      socket.off("productUpdate", loadProfits);
-    };
-  }, []);
+    return undefined;
+  }, [socket, user]);
+
+  if (user?.role !== "leader") {
+    return null;
+  }
 
   if (loading) {
     return <div className="p-4 text-slate-500">Loading profits...</div>;

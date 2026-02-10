@@ -10,7 +10,7 @@ const navItemClass = ({ isActive }) =>
   }`;
 
 export default function Layout() {
-  const { user, team, logout, socket } = useAuth();
+  const { user, team, authFetch, setTeam, logout, socket } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [popup, setPopup] = useState(null);
   const navigate = useNavigate();
@@ -26,6 +26,26 @@ export default function Layout() {
     socket.on("teamMessage", handleMessage);
     return () => socket.off("teamMessage", handleMessage);
   }, [socket, user]);
+
+  useEffect(() => {
+    if (!user || team?.code) return;
+    let isActive = true;
+    const loadTeam = async () => {
+      try {
+        const data = await authFetch("/api/teams/me");
+        const normalizedTeam = data?.team ?? data;
+        if (isActive && normalizedTeam?.id) {
+          setTeam(normalizedTeam);
+        }
+      } catch {
+        // Keep placeholder when team data is unavailable.
+      }
+    };
+    loadTeam();
+    return () => {
+      isActive = false;
+    };
+  }, [authFetch, setTeam, team, user]);
 
   const handleLogout = () => {
     logout();
@@ -97,7 +117,7 @@ export default function Layout() {
           <div className="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
             <div className="font-semibold text-slate-700">Team Code</div>
             <div className="text-sm tracking-widest text-slate-900">
-              {team?.code}
+              {team?.code || "—"}
             </div>
           </div>
         </aside>
