@@ -1,15 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { Capacitor } from "@capacitor/core";
 
 const AuthContext = createContext(null);
+
+const isNativePlatform =
+  typeof window !== "undefined" &&
+  window.Capacitor &&
+  typeof window.Capacitor.isNativePlatform === "function" &&
+  window.Capacitor.isNativePlatform();
 
 // ✅ API BASE:
 // - Web → same origin ""
 // - Android APK → absolute Render URL
-const API_BASE = Capacitor.isNativePlatform()
-  ? "https://kalashapp.onrender.com"
-  : "";
+const API_BASE = isNativePlatform ? "https://kalashapp.onrender.com" : "";
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("tsp_token"));
