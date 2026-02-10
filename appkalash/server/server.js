@@ -149,6 +149,14 @@ app.post("/api/auth/login", async (req, res) => {
     { expiresIn: "7d" }
   );
 
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id, code, name")
+    .eq("id", member.team_id)
+    .single();
+
+  if (!team) return res.status(404).json({ message: "Team not found" });
+
   res.json({
     token,
     user: {
@@ -157,6 +165,7 @@ app.post("/api/auth/login", async (req, res) => {
       name: member.name,
       role: member.role,
     },
+    team,
   });
 });
 
@@ -306,6 +315,49 @@ app.get("/api/sales", authMiddleware, async (req, res) => {
   res.json(data);
 });
 
+/* -------------------- MESSAGES -------------------- */
+
+app.get("/api/messages", authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, text, created_at, created_by")
+    .eq("team_id", req.user.teamId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ message: "Failed to load messages" });
+  }
+
+  res.json(Array.isArray(data) ? data : []);
+});
+
+app.post("/api/messages", authMiddleware, leaderOnly, async (req, res) => {
+  const rawText = typeof req.body?.text === "string" ? req.body.text : "";
+  const text = rawText.trim();
+
+  if (!text) {
+    return res.status(400).json({ message: "Message text is required" });
+  }
+
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({
+      id: uuidv4(),
+      team_id: req.user.teamId,
+      text,
+      created_by: req.user.userId,
+    })
+    .select("id, text, created_at, created_by")
+    .single();
+
+  if (error || !data) {
+    return res.status(500).json({ message: "Failed to send message" });
+  }
+
+  emitToTeam(req.user.teamId, "teamMessage", data);
+  res.json(data);
+});
+
 /* -------------------- PROFITS -------------------- */
 
 app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
@@ -332,11 +384,20 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
 
 /* -------------------- SPA FALLBACK -------------------- */
 
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
 if (NODE_ENV === "production") {
   app.get("*", (_, res) => {
     res.sendFile(path.resolve(__dirname, "../client/dist/index.html"));
   });
 }
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  res.status(500).json({ message: "Server error" });
+});
 
 /* -------------------- START -------------------- */
 

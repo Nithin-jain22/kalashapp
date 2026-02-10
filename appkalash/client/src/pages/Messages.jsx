@@ -28,7 +28,10 @@ export default function Messages() {
     if (!socket) return;
 
     const handleMessage = (message) => {
-      setMessages((prev) => [message, ...prev]);
+      if (!message || !message.id) return;
+      setMessages((prev) =>
+        prev.some((m) => m.id === message.id) ? prev : [message, ...prev]
+      );
     };
 
     socket.on("teamMessage", handleMessage);

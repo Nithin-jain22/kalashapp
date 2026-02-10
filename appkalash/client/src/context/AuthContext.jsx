@@ -46,6 +46,14 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem("tsp_team");
   }, [team]);
 
+  const parseApiResponse = async (res) => {
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return { isJson: true, data: await res.json() };
+    }
+    return { isJson: false, data: await res.text() };
+  };
+
   const authFetch = useMemo(() => {
     return async (url, options = {}) => {
       const res = await fetch(`${API_BASE}${url}`, {
@@ -56,11 +64,15 @@ export function AuthProvider({ children }) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
+      const { isJson, data } = await parseApiResponse(res);
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || "Request failed");
+        const message = isJson && data?.message ? data.message : "Request failed";
+        throw new Error(message);
       }
-      return res.json();
+      if (!isJson) {
+        throw new Error("Unexpected response format");
+      }
+      return data;
     };
   }, [token]);
 
@@ -70,11 +82,14 @@ export function AuthProvider({ children }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
+    const { isJson, data } = await parseApiResponse(res);
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message || "Login failed");
+      const message = isJson && data?.message ? data.message : "Login failed";
+      throw new Error(message);
     }
-    const data = await res.json();
+    if (!isJson) {
+      throw new Error("Unexpected response format");
+    }
     setToken(data.token);
     setUser(data.user);
     setTeam(data.team);
@@ -86,11 +101,14 @@ export function AuthProvider({ children }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const { isJson, data } = await parseApiResponse(res);
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message || "Registration failed");
+      const message = isJson && data?.message ? data.message : "Registration failed";
+      throw new Error(message);
     }
-    const data = await res.json();
+    if (!isJson) {
+      throw new Error("Unexpected response format");
+    }
     setToken(data.token);
     setUser(data.user);
     setTeam(data.team);
@@ -102,11 +120,15 @@ export function AuthProvider({ children }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const { isJson, data } = await parseApiResponse(res);
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message || "Request failed");
+      const message = isJson && data?.message ? data.message : "Request failed";
+      throw new Error(message);
     }
-    return res.json();
+    if (!isJson) {
+      throw new Error("Unexpected response format");
+    }
+    return data;
   };
 
   const logout = () => {
