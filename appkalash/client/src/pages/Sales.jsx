@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 const socket = io(); // uses same origin
 
 export default function Sales() {
-  const { authFetch } = useAuth();
+  const { authFetch, user } = useAuth();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -52,9 +52,11 @@ export default function Sales() {
             <div className="text-sm text-slate-600">
               Qty: {sale.quantity} | Sell: ₹{sale.actual_sell_price}
             </div>
-            <div className="font-semibold text-green-600">
-              Profit: ₹{sale.profit}
-            </div>
+            {user?.role === "leader" && (
+              <div className="font-semibold text-green-600">
+                Profit: ₹{sale.profit}
+              </div>
+            )}
           </div>
         ))
       )}
