@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export default function TeamManagement() {
-  const { authFetch } = useAuth();
+  const { authFetch, socket } = useAuth();
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +35,13 @@ export default function TeamManagement() {
 
     loadAll();
   }, [authFetch]);
+
+  useEffect(() => {
+    if (!socket) return undefined;
+    const handleMemberUpdate = () => loadMembers();
+    socket.on("memberUpdate", handleMemberUpdate);
+    return () => socket.off("memberUpdate", handleMemberUpdate);
+  }, [socket]);
 
   const handleApprove = async (memberId) => {
     setError("");

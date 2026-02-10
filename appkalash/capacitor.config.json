@@ -1,0 +1,5 @@
+{
+  "appId": "com.teamstockpro.app",
+  "appName": "teamstock-pro",
+  "webDir": "client/dist"
+}

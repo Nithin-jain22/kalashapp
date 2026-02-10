@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { io } from "socket.io-client";
-
-const socket = io(); // uses same origin
 
 export default function Sales() {
-  const { authFetch, user } = useAuth();
+  const { authFetch, user, socket } = useAuth();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,12 +23,13 @@ export default function Sales() {
   useEffect(() => {
     loadSales();
 
+    if (!socket) return undefined;
     socket.on("productUpdate", loadSales);
 
     return () => {
       socket.off("productUpdate", loadSales);
     };
-  }, []);
+  }, [socket]);
 
   if (loading) {
     return <div className="p-4 text-slate-500">Loading sales...</div>;

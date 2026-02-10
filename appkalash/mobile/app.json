@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "TeamStock Pro",
+    "slug": "teamstock-pro",
+    "version": "1.0.0",
+    "scheme": "teamstockpro",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.svg",
+    "splash": {
+      "image": "./assets/splash.svg",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.teamstockpro.app"
+    },
+    "android": {
+      "package": "com.teamstockpro.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.svg",
+        "backgroundColor": "#0F172A"
+      }
+    },
+    "plugins": [
+      "react-native-webview",
+      "react-native-safe-area-context"
+    ],
+    "extra": {
+      "webUrl": "https://your-app.onrender.com"
+    }
+  }
+}

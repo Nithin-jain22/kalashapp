@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">teamstock-pro</string>
+    <string name="title_activity_main">teamstock-pro</string>
+    <string name="package_name">com.teamstockpro.app</string>
+    <string name="custom_url_scheme">com.teamstockpro.app</string>
+</resources>
