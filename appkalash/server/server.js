@@ -510,9 +510,9 @@ app.post("/api/messages", authMiddleware, leaderOnly, async (req, res) => {
 app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
   try {
     const { pin } = req.body;
-    const pinValue = String(pin ?? "").trim();
-    if (!/^[0-9]{4}$/.test(pinValue)) {
-      return res.status(403).json({ message: "Invalid PIN" });
+
+    if (!pin) {
+      return res.status(400).json({ message: "PIN required" });
     }
 
     const { data: team, error: teamError } = await supabase
@@ -521,20 +521,28 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
       .eq("id", req.user.teamId)
       .single();
 
-    if (teamError || !team || String(team.pin).trim() !== pinValue) {
+    if (teamError || !team) {
+      return res.status(500).json({ message: "Failed to verify PIN" });
+    }
+
+    if (String(team.pin) !== String(pin)) {
       return res.status(403).json({ message: "Invalid PIN" });
     }
 
-    const { data: sales, error: salesError } = await supabase
+    const { data: sales, error } = await supabase
       .from("sales")
       .select("profit")
       .eq("team_id", req.user.teamId);
 
-    if (salesError) {
+    if (error) {
       return res.status(500).json({ message: "Failed to load profits" });
     }
 
-    const totalProfit = (sales || []).reduce((sum, s) => sum + s.profit, 0);
+    const totalProfit = (sales || []).reduce(
+      (sum, s) => sum + Number(s.profit || 0),
+      0
+    );
+
     res.json({ totalProfit });
   } catch (err) {
     console.error("PROFITS ERROR:", err);
