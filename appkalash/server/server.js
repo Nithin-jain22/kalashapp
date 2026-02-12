@@ -542,6 +542,12 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
   }
 });
 
+/* -------------------- HEALTH CHECK -------------------- */
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 /* ==================== API 404 ==================== */
 
 app.use("/api/*", (req, res) => {
@@ -554,13 +560,6 @@ app.use((err, req, res, next) => {
     return res.status(500).json({ message: "Server error" });
   }
   next(err);
-});
-
-
-/* -------------------- HEALTH CHECK -------------------- */
-
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
 });
 
 
