@@ -556,6 +556,14 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+
+/* -------------------- HEALTH CHECK -------------------- */
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+
 /* ==================== SPA FALLBACK ==================== */
 
 if (NODE_ENV === "production") {
