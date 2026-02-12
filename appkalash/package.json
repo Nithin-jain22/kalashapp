@@ -16,7 +16,7 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "@capacitor/android": "^5.7.4",
+    "@capacitor/android": "^5.7.8",
     "@capacitor/cli": "^5.7.4",
     "@capacitor/core": "^5.7.4",
     "@supabase/supabase-js": "^2.95.3"

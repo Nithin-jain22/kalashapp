@@ -510,8 +510,9 @@ app.post("/api/messages", authMiddleware, leaderOnly, async (req, res) => {
 app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
   try {
     const { pin } = req.body;
+    const pinValue = String(pin ?? "").trim();
 
-    if (!pin) {
+    if (!pinValue) {
       return res.status(400).json({ message: "PIN required" });
     }
 
@@ -521,7 +522,7 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
       .eq("id", req.user.teamId)
       .single();
 
-    if (teamError || !team || team.pin !== pin) {
+    if (teamError || !team || String(team.pin) !== pinValue) {
       return res.status(403).json({ message: "Invalid PIN" });
     }
 

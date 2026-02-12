@@ -13,20 +13,26 @@ export default function Profits() {
   const loadProfits = async (pin, { setLoadingState = true } = {}) => {
     if (user?.role !== "leader") return;
     try {
-      if (!pin) return;
+      const pinValue = String(pin ?? "").trim();
+      if (!pinValue) {
+        setError("PIN required");
+        return false;
+      }
       if (setLoadingState) {
         setLoading(true);
       }
 
       const data = await authFetch("/api/profits", {
         method: "POST",
-        body: JSON.stringify({ pin }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinValue }),
       });
 
       setTotalProfit(data.totalProfit || 0);
       setError("");
       return true;
     } catch (err) {
+      console.error("PROFITS LOAD ERROR:", err);
       setError(err.message || "Failed to load profits");
       return false;
     } finally {
