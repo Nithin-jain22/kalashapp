@@ -6,16 +6,16 @@ export default function Profits() {
   const [totalProfit, setTotalProfit] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [pinInput, setPinInput] = useState("");
+  const [pin, setPin] = useState("");
   const [storedPin, setStoredPin] = useState("");
   const [unlocked, setUnlocked] = useState(false);
 
-  const loadProfits = async (pin, { setLoadingState = true } = {}) => {
+  const loadProfits = async (pinValue, { setLoadingState = true } = {}) => {
     if (user?.role !== "leader") return;
     try {
-      const pinValue = String(pin ?? "").trim();
-      if (!pinValue) {
-        setError("PIN required");
+      const normalizedPin = String(pinValue ?? "").trim();
+      if (!/^[0-9]{4}$/.test(normalizedPin)) {
+        setError("Enter a 4-digit PIN");
         return false;
       }
       if (setLoadingState) {
@@ -25,7 +25,7 @@ export default function Profits() {
       const data = await authFetch("/api/profits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: String(pin) }),
+        body: JSON.stringify({ pin: String(normalizedPin) }),
       });
 
       setTotalProfit(data.totalProfit);
@@ -44,16 +44,16 @@ export default function Profits() {
 
   const handleUnlock = async (event) => {
     event.preventDefault();
-    if (!/^[0-9]{4}$/.test(pinInput)) {
+    if (!/^[0-9]{4}$/.test(pin)) {
       setError("Enter a 4-digit PIN");
       return;
     }
 
-    const success = await loadProfits(pinInput);
+    const success = await loadProfits(pin);
     if (success) {
-      setStoredPin(pinInput);
+      setStoredPin(pin);
       setUnlocked(true);
-      setPinInput("");
+      setPin("");
     }
   };
 
@@ -96,10 +96,10 @@ export default function Profits() {
             inputMode="numeric"
             pattern="[0-9]*"
             maxLength={4}
-            value={pinInput}
+            value={pin}
             onChange={(event) => {
               const nextValue = event.target.value.replace(/\D/g, "");
-              setPinInput(nextValue.slice(0, 4));
+              setPin(nextValue.slice(0, 4));
             }}
             placeholder="Enter 4-digit PIN"
             className="w-full rounded-lg border border-slate-300 px-4 py-2"

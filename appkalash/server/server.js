@@ -511,9 +511,8 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
   try {
     const { pin } = req.body;
     const pinValue = String(pin ?? "").trim();
-
-    if (!pinValue) {
-      return res.status(400).json({ message: "PIN required" });
+    if (!/^[0-9]{4}$/.test(pinValue)) {
+      return res.status(403).json({ message: "Invalid PIN" });
     }
 
     const { data: team, error: teamError } = await supabase
@@ -522,7 +521,7 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
       .eq("id", req.user.teamId)
       .single();
 
-    if (teamError || !team || String(team.pin) !== String(pin)) {
+    if (teamError || !team || String(team.pin).trim() !== pinValue) {
       return res.status(403).json({ message: "Invalid PIN" });
     }
 
