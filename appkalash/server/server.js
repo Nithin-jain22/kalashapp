@@ -522,7 +522,7 @@ app.post("/api/profits", authMiddleware, leaderOnly, async (req, res) => {
       .eq("id", req.user.teamId)
       .single();
 
-    if (teamError || !team || String(team.pin) !== pinValue) {
+    if (teamError || !team || String(team.pin) !== String(pin)) {
       return res.status(403).json({ message: "Invalid PIN" });
     }
 

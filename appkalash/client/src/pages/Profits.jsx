@@ -25,10 +25,10 @@ export default function Profits() {
       const data = await authFetch("/api/profits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pinValue }),
+        body: JSON.stringify({ pin: String(pin) }),
       });
 
-      setTotalProfit(data.totalProfit || 0);
+      setTotalProfit(data.totalProfit);
       setError("");
       return true;
     } catch (err) {
